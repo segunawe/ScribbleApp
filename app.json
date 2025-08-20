@@ -35,8 +35,31 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
-    ],
+      ],
+      
+      ["expo-asset",
+      {
+          "assets": [
+            "./assets/CoverPage.png",
+            "./assets/Scribble_Stories_Intro_Page_1.png",
+            "./assets/Scribble_Stories_Circle_Page_2.png",
+            "./assets/Scribble_Stories_Circle_Practice_Page_3.png",
+            "./assets/Scribble_Stories_Square_Page_4.png",
+            "./assets/Scribble_Stories_Square_Practice_Page_5.png",
+            "./assets/Scribble_Stories_Triangle_Page_6.png",
+            "./assets/Scribble_Stories_Triangle_Practice_Page_7.png",
+            "./assets/Scribble_Stories_Rectangle_Page_8.png",
+            "./assets/Scribble_Stories_Rectangle_Practice_Page_9.png",
+            "./assets/Scribble_Stories_Shapes_Together_Page_10.png",
+            "./assets/Scribble_Stories_Shapes_Together_Practice_Page_11.png",
+            "./assets/Scribble_Stories_House_Rocket_Practice_Page_12.png",
+            "./assets/Scribble_Stories_Train_Boat_Practice_Page_13.png",
+            "./assets/Scribble_Stories_Sun_Tree_Practice_Page_14.png",
+            "./assets/Scribble_Stories_Robot_Car_Practice_Page_15.png",
+            "./assets/Back_Cover.png"
+          ]
+        }
+    ]],
     "experiments": {
       "typedRoutes": true
     }
