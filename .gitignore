@@ -78,4 +78,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# EAS credentials
+service-account.json
+*.keystore
+
 # @end expo-cli

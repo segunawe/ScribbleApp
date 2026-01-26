@@ -2,15 +2,28 @@
   "expo": {
     "name": "ScribbleApp",
     "slug": "ScribbleApp",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "scribbleapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.ScribbleApp"
+      "bundleIdentifier": "com.scribbleapp.ScribbleApp",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +31,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.ScribbleApp"
+      "package": "com.scribbleapp.ScribbleApp",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "bundler": "metro",
@@ -36,9 +51,9 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      
-      ["expo-asset",
-      {
+      [
+        "expo-asset",
+        {
           "assets": [
             "./assets/CoverPage.png",
             "./assets/Scribble_Stories_Intro_Page_1.png",
@@ -59,9 +74,16 @@
             "./assets/Back_Cover.png"
           ]
         }
-    ]],
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b93164c9-6c75-40e1-9ffd-fbd7b09caae2"
+      }
     }
   }
 }
