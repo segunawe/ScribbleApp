@@ -7,11 +7,13 @@ export interface DrawingCanvasRef {
   setPage:  (uri: string)   => void;
   undo:     ()              => void;
   clear:    ()              => void;
+  save:     (bgBase64: string) => void;
 }
 
 interface Props {
-  bgUri: string;
-  size:  number;
+  bgUri:       string;
+  size:        number;
+  onSaveData:  (dataUrl: string) => void;
 }
 
 // WebView renders background + canvas — no touch handling inside HTML
@@ -126,12 +128,43 @@ function buildHTML(bgUri: string, size: number) {
       strokes = []; current = null;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+
+    function savePage(bgData) {
+      var offscreen = document.createElement('canvas');
+      offscreen.width  = canvas.width;
+      offscreen.height = canvas.height;
+      var offCtx = offscreen.getContext('2d');
+
+      // White background
+      offCtx.fillStyle = '#ffffff';
+      offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+      var img = new Image();
+      img.onload = function() {
+        // Replicate background-size:contain; background-position:center
+        var scale = Math.min(offscreen.width / img.width, offscreen.height / img.height);
+        var dw = img.width  * scale;
+        var dh = img.height * scale;
+        var dx = (offscreen.width  - dw) / 2;
+        var dy = (offscreen.height - dh) / 2;
+        offCtx.drawImage(img, dx, dy, dw, dh);
+        // Draw strokes on top
+        offCtx.drawImage(canvas, 0, 0);
+        window.ReactNativeWebView.postMessage('SAVE:' + offscreen.toDataURL('image/png'));
+      };
+      img.onerror = function() {
+        // Fallback: strokes on white background
+        offCtx.drawImage(canvas, 0, 0);
+        window.ReactNativeWebView.postMessage('SAVE:' + offscreen.toDataURL('image/png'));
+      };
+      img.src = bgData;
+    }
   </script>
 </body>
 </html>`;
 }
 
-const DrawingCanvas = forwardRef<DrawingCanvasRef, Props>(({ bgUri, size }, ref) => {
+const DrawingCanvas = forwardRef<DrawingCanvasRef, Props>(({ bgUri, size, onSaveData }, ref) => {
   const webviewRef = useRef<WebView>(null);
   const loadedRef  = useRef(false);
 
@@ -163,6 +196,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, Props>(({ bgUri, size }, ref)
     setPage:  (uri)   => inject(`setPage('${uri}')`),
     undo:     ()      => inject(`undo()`),
     clear:    ()      => inject(`clear()`),
+    save:     (bgBase64) => inject(`savePage(${JSON.stringify(bgBase64)})`),
   }));
 
   return (
@@ -184,7 +218,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, Props>(({ bgUri, size }, ref)
         allowFileAccessFromFileURLs
         allowUniversalAccessFromFileURLs
         onLoad={() => { loadedRef.current = true; }}
-        onMessage={(e) => console.log("Canvas:", e.nativeEvent.data)}
+        onMessage={(e) => {
+          const data = e.nativeEvent.data;
+          if (data.startsWith('SAVE:')) {
+            onSaveData(data.slice(5));
+          }
+        }}
       />
 
       {/* Invisible touch layer — captures all gestures and forwards to WebView canvas */}

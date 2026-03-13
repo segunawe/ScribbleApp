@@ -1,173 +1,164 @@
-import * as Haptics from "expo-haptics";
-import React, { JSX, useCallback, useMemo, useRef, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
+import React, { JSX } from "react";
 import {
+  Alert,
   Dimensions,
   Image,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-import DrawingCanvas, { DrawingCanvasRef } from "@/components/DrawingCanvas";
-
-// ─── Book pages ──────────────────────────────────────────────────────────────
-const PAGES = [
-  require("../assets/CoverPage.png"),
-  require("../assets/Scribble_Stories_Intro_Page_1.png"),
-  require("../assets/Scribble_Stories_Circle_Page_2.png"),
-  require("../assets/Scribble_Stories_Circle_Practice_Page_3.png"),
-  require("../assets/Scribble_Stories_Square_Page_4.png"),
-  require("../assets/Scribble_Stories_Square_Practice_Page_5.png"),
-  require("../assets/Scribble_Stories_Triangle_Page_6.png"),
-  require("../assets/Scribble_Stories_Triangle_Practice_Page_7.png"),
-  require("../assets/Scribble_Stories_Rectangle_Page_8.png"),
-  require("../assets/Scribble_Stories_Rectangle_Practice_Page_9.png"),
-  require("../assets/Scribble_Stories_Shapes_Together_Page_10.png"),
-  require("../assets/Scribble_Stories_Shapes_Together_Practice_Page_11.png"),
-  require("../assets/page1.png"),
-  require("../assets/train_boat_page2_centered.png"),
-  require("../assets/page2_centered.png"),
-  require("../assets/Star_page.png"),
-  require("../assets/rocket_page2_final.png"),
-  require("../assets/house_page1_final.png"),
-  require("../assets/heart_page.png"),
-  require("../assets/car_page.png"),
-  require("../assets/cloud_page.png"),
-  require("../assets/flower_page.png"),
-  require("../assets/train_boat_page1_refined.png"),
-  require("../assets/robot_page.png"),
-  require("../assets/Back_Cover.png"),
-];
-
-const COLORS = [
-  "#1a1a1a", // black
-  "#FF3B30", // red
-  "#007AFF", // blue
-  "#34C759", // green
-  "#FF9500", // orange
-  "#AF52DE", // purple
-];
+import { BOOKS, Book } from "@/config/books";
 
 const { width: W } = Dimensions.get("window");
-const CANVAS_SIZE  = Math.min(W - 16, 720);
+
+// 2 books per shelf row, with padding and gap
+const SHELF_PADDING = 24;
+const BOOK_GAP      = 16;
+const BOOK_WIDTH    = (W - SHELF_PADDING * 2 - BOOK_GAP) / 2;
+const BOOK_HEIGHT   = BOOK_WIDTH * 1.35;
+
+// ─── Chunk books into rows of 2 ──────────────────────────────────────────────
+function chunkBooks(books: Book[], size: number): Book[][] {
+  const rows: Book[][] = [];
+  for (let i = 0; i < books.length; i += size) {
+    rows.push(books.slice(i, i + size));
+  }
+  return rows;
+}
+
+// ─── Single book card ─────────────────────────────────────────────────────────
+function BookCard({ book, onPress }: { book: Book; onPress: () => void }) {
+  const isLocked = book.status === "locked";
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={isLocked ? 0.6 : 0.85}
+      style={[styles.bookCard, { width: BOOK_WIDTH, height: BOOK_HEIGHT }]}
+    >
+      {/* Cover image or placeholder */}
+      {book.cover ? (
+        <Image
+          source={book.cover}
+          style={styles.bookCover}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.bookCoverPlaceholder}>
+          <Ionicons name="book-outline" size={40} color="#4A6FA5" />
+        </View>
+      )}
+
+      {/* Lock overlay */}
+      {isLocked && (
+        <View style={styles.lockOverlay}>
+          <View style={styles.lockBadge}>
+            <Ionicons name="lock-closed" size={22} color="#fff" />
+          </View>
+        </View>
+      )}
+
+      {/* Title */}
+      <View style={styles.bookTitleRow}>
+        <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
+        {!isLocked && (
+          <View style={styles.freeBadge}>
+            <Text style={styles.freeBadgeText}>FREE</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Log shelf beam ───────────────────────────────────────────────────────────
+function ShelfLog() {
+  return (
+    <View style={styles.shelfLog}>
+      <View style={styles.shelfLogHighlight} />
+      <View style={styles.shelfLogShadow} />
+    </View>
+  );
+}
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
-export default function BookScreen(): JSX.Element {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [penColor,  setPenColor]  = useState(COLORS[0]);
+export default function LibraryScreen(): JSX.Element {
+  const router = useRouter();
+  const rows   = chunkBooks(BOOKS, 2);
 
-  const canvasRef = useRef<DrawingCanvasRef>(null);
-
-  const bgUri = useMemo(
-    () => Image.resolveAssetSource(PAGES[pageIndex]).uri,
-    [pageIndex]
-  );
-
-  const goBack = useCallback(() => {
-    if (pageIndex > 0) {
-      const next = pageIndex - 1;
-      const uri  = Image.resolveAssetSource(PAGES[next]).uri;
-      setPageIndex(next);
-      canvasRef.current?.setPage(uri);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleBookPress = (book: Book) => {
+    if (book.status === "locked") {
+      Alert.alert("Coming Soon", "This book will be available soon!");
+      return;
     }
-  }, [pageIndex]);
-
-  const goNext = useCallback(() => {
-    if (pageIndex < PAGES.length - 1) {
-      const next = pageIndex + 1;
-      const uri  = Image.resolveAssetSource(PAGES[next]).uri;
-      setPageIndex(next);
-      canvasRef.current?.setPage(uri);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  }, [pageIndex]);
-
-  const handleColor = useCallback((color: string) => {
-    setPenColor(color);
-    canvasRef.current?.setColor(color);
-    Haptics.selectionAsync();
-  }, []);
-
-  const handleUndo = useCallback(() => {
-    canvasRef.current?.undo();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
-
-  const handleClear = useCallback(() => {
-    canvasRef.current?.clear();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+    router.push(`/book/${book.id}`);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Scribble Stories</Text>
-        <Text style={styles.pageCount}>{pageIndex + 1} / {PAGES.length}</Text>
+        {/* Decorative left column cap */}
+        <View style={styles.columnCap} />
+        <Text style={styles.headerTitle}>My Library</Text>
+        {/* Decorative right column cap */}
+        <View style={styles.columnCap} />
       </View>
 
-      {/* Canvas */}
-      <View style={styles.canvasArea}>
-        <View style={[styles.canvasBox, { width: CANVAS_SIZE, height: CANVAS_SIZE }]}>
-          <DrawingCanvas
-            ref={canvasRef}
-            bgUri={bgUri}
-            size={CANVAS_SIZE}
-          />
+      {/* Decorative columns + scroll area */}
+      <View style={styles.body}>
+        {/* Left column */}
+        <View style={styles.column}>
+          <View style={styles.columnShaft} />
         </View>
-      </View>
 
-      {/* Toolbar */}
-      <View style={styles.toolbar}>
+        {/* Shelves */}
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {rows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.shelfRow}>
+              {/* Books */}
+              <View style={styles.booksRow}>
+                {row.map(book => (
+                  <BookCard
+                    key={book.id}
+                    book={book}
+                    onPress={() => handleBookPress(book)}
+                  />
+                ))}
+                {/* Empty slot filler if odd number */}
+                {row.length < 2 && (
+                  <View style={{ width: BOOK_WIDTH }} />
+                )}
+              </View>
 
-        {/* Colors */}
-        <View style={styles.colorRow}>
-          {COLORS.map((color) => (
-            <TouchableOpacity
-              key={color}
-              onPress={() => handleColor(color)}
-              style={[
-                styles.colorDot,
-                { backgroundColor: color },
-                color === "#1a1a1a" && styles.colorDotDark,
-                penColor === color && styles.colorDotSelected,
-              ]}
-            />
+              {/* Log shelf below books */}
+              <ShelfLog />
+            </View>
           ))}
+
+          <View style={{ height: 24 }} />
+        </ScrollView>
+
+        {/* Right column */}
+        <View style={styles.column}>
+          <View style={styles.columnShaft} />
         </View>
-
-        {/* Actions */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            onPress={goBack}
-            disabled={pageIndex === 0}
-            style={[styles.btn, styles.navBtn, pageIndex === 0 && styles.btnDisabled]}
-          >
-            <Text style={styles.navArrow}>‹</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleUndo} style={[styles.btn, styles.toolBtn]}>
-            <Text style={styles.toolLabel}>Undo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleClear} style={[styles.btn, styles.toolBtn]}>
-            <Text style={styles.toolLabel}>Clear</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={goNext}
-            disabled={pageIndex === PAGES.length - 1}
-            style={[styles.btn, styles.navBtn, pageIndex === PAGES.length - 1 && styles.btnDisabled]}
-          >
-            <Text style={styles.navArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-
       </View>
+
+      {/* Floor beam */}
+      <View style={styles.floorBeam} />
+
     </SafeAreaView>
   );
 }
@@ -176,109 +167,187 @@ export default function BookScreen(): JSX.Element {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#FFFDF7",
+    backgroundColor: "#0D2B6E",
   },
 
+  // ── Header ──
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection:  "row",
+    alignItems:     "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical:   12,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a1a1a",
-  },
-  pageCount: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#aaa",
-  },
-
-  canvasArea: {
+  headerTitle: {
+    fontSize:   26,
+    fontWeight: "900",
+    color:      "#FFB703",
+    letterSpacing: 2,
+    textTransform: "uppercase",
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
+    textAlign: "center",
   },
-  canvasBox: {
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-
-  toolbar: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 10,
-  },
-
-  colorRow: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-  },
-  colorDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 3,
-    borderColor: "transparent",
-  },
-  colorDotDark: {
-    borderColor: "#E8E8E8",
-  },
-  colorDotSelected: {
-    borderColor: "#FFB703",
-    transform: [{ scale: 1.2 }],
-  },
-
-  actionRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  btn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navBtn: {
+  columnCap: {
+    width:           18,
+    height:          18,
+    borderRadius:    9,
     backgroundColor: "#FFB703",
-    shadowColor: "#FFB703",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 3,
   },
-  toolBtn: {
-    backgroundColor: "#EFEFEF",
+
+  // ── Body layout ──
+  body: {
+    flex:           1,
+    flexDirection:  "row",
   },
-  btnDisabled: {
-    backgroundColor: "#F5E9C0",
-    shadowOpacity: 0,
-    elevation: 0,
+
+  // ── Decorative side columns ──
+  column: {
+    width:           28,
+    alignItems:      "center",
+    paddingVertical: 4,
   },
-  navArrow: {
-    fontSize: 30,
+  columnShaft: {
+    flex:            1,
+    width:           18,
+    backgroundColor: "#1A4AAA",
+    borderRadius:    9,
+    borderLeftWidth:  2,
+    borderRightWidth: 2,
+    borderColor:      "#2A5ACA",
+  },
+
+  // ── Scroll area ──
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 16,
+  },
+
+  // ── Shelf row ──
+  shelfRow: {
+    marginBottom: 8,
+  },
+  booksRow: {
+    flexDirection:  "row",
+    justifyContent: "space-between",
+    paddingHorizontal: SHELF_PADDING - 24, // columns already take 28px each side
+    gap: BOOK_GAP,
+    paddingBottom: 10,
+  },
+
+  // ── Log shelf beam ──
+  shelfLog: {
+    height:           26,
+    marginHorizontal: 4,
+    backgroundColor:  "#1A4EC8",
+    borderRadius:     13,
+    shadowColor:      "#000",
+    shadowOpacity:    0.4,
+    shadowOffset:     { width: 0, height: 4 },
+    shadowRadius:     5,
+    elevation:        5,
+    overflow:         "hidden",
+  },
+  shelfLogHighlight: {
+    position:        "absolute",
+    top:             3,
+    left:            20,
+    right:           20,
+    height:          7,
+    backgroundColor: "#4A7EE8",
+    borderRadius:    4,
+    opacity:         0.7,
+  },
+  shelfLogShadow: {
+    position:        "absolute",
+    bottom:          2,
+    left:            20,
+    right:           20,
+    height:          4,
+    backgroundColor: "#0A1E5A",
+    borderRadius:    2,
+    opacity:         0.5,
+  },
+
+  // ── Floor beam ──
+  floorBeam: {
+    height:          20,
+    backgroundColor: "#1A4EC8",
+    borderTopLeftRadius:  10,
+    borderTopRightRadius: 10,
+    shadowColor:     "#000",
+    shadowOpacity:   0.3,
+    shadowOffset:    { width: 0, height: -2 },
+    shadowRadius:    4,
+    elevation:       4,
+  },
+
+  // ── Book card ──
+  bookCard: {
+    backgroundColor:    "#FFFEF7",
+    borderRadius:        10,
+    overflow:           "hidden",
+    shadowColor:        "#000",
+    shadowOpacity:      0.2,
+    shadowOffset:       { width: 0, height: 3 },
+    shadowRadius:       5,
+    elevation:          4,
+  },
+  bookCover: {
+    width:  "100%",
+    height: "75%",
+  },
+  bookCoverPlaceholder: {
+    width:           "100%",
+    height:          "75%",
+    backgroundColor: "#C8D8EE",
+    alignItems:      "center",
+    justifyContent:  "center",
+  },
+  lockOverlay: {
+    position:        "absolute",
+    top:             0,
+    left:            0,
+    right:           0,
+    bottom:          "25%",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems:      "center",
+    justifyContent:  "center",
+  },
+  lockBadge: {
+    width:           48,
+    height:          48,
+    borderRadius:    24,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems:      "center",
+    justifyContent:  "center",
+  },
+  bookTitleRow: {
+    height:          "25%",
+    paddingHorizontal: 8,
+    paddingVertical:   6,
+    flexDirection:   "row",
+    alignItems:      "center",
+    justifyContent:  "space-between",
+    gap:             4,
+  },
+  bookTitle: {
+    flex:       1,
+    fontSize:   12,
     fontWeight: "700",
-    color: "#fff",
-    lineHeight: 34,
+    color:      "#1a1a1a",
   },
-  toolLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#555",
+  freeBadge: {
+    backgroundColor: "#FFB703",
+    borderRadius:    4,
+    paddingHorizontal: 5,
+    paddingVertical:   2,
+  },
+  freeBadgeText: {
+    fontSize:   9,
+    fontWeight: "900",
+    color:      "#fff",
+    letterSpacing: 0.5,
   },
 });
