@@ -34,7 +34,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.scribbleapp.ScribbleApp",
       "versionCode": 1,
-      "googleServicesFile": "./android/app/google-services.json"
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",

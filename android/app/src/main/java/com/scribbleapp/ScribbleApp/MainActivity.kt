@@ -1,4 +1,4 @@
-package com.scribbleapp
+package com.scribbleapp.ScribbleApp
 
 import android.os.Build
 import android.os.Bundle
