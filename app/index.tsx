@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { JSX } from "react";
+import React, { JSX, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -14,6 +14,8 @@ import {
 } from "react-native";
 
 import { BOOKS, Book } from "@/config/books";
+import AuthModal from "@/components/AuthModal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const { width: W } = Dimensions.get("window");
 
@@ -90,14 +92,36 @@ function ShelfLog() {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function LibraryScreen(): JSX.Element {
   const router = useRouter();
-  const rows   = chunkBooks(BOOKS, 2);
+  const { unlockedBooks } = useAuth();
+  const rows = chunkBooks(BOOKS, 2);
+
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const pendingBookRef = useRef<Book | null>(null);
 
   const handleBookPress = (book: Book) => {
-    if (book.status === "locked") {
-      Alert.alert("Coming Soon", "This book will be available soon!");
+    if (unlockedBooks.includes(book.id)) {
+      router.push(`/book/${book.id}`);
       return;
     }
-    router.push(`/book/${book.id}`);
+    // Locked — prompt sign-in, then re-check entitlements
+    pendingBookRef.current = book;
+    setAuthModalVisible(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setAuthModalVisible(false);
+    const book = pendingBookRef.current;
+    if (!book) return;
+    // After sign-in, unlockedBooks updates via AuthContext.
+    // If they now have access, navigate; otherwise show coming-soon.
+    // We use a short delay to let state settle.
+    setTimeout(() => {
+      if (unlockedBooks.includes(book.id)) {
+        router.push(`/book/${book.id}`);
+      } else {
+        Alert.alert("Coming Soon", "This book isn't available yet. Check back soon!");
+      }
+    }, 300);
   };
 
   return (
@@ -158,6 +182,13 @@ export default function LibraryScreen(): JSX.Element {
 
       {/* Floor beam */}
       <View style={styles.floorBeam} />
+
+      {/* Parent auth modal — shown when a locked book is tapped */}
+      <AuthModal
+        visible={authModalVisible}
+        onClose={() => setAuthModalVisible(false)}
+        onSuccess={handleAuthSuccess}
+      />
 
     </SafeAreaView>
   );

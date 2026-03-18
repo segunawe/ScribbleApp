@@ -82,4 +82,9 @@ yarn-error.*
 service-account.json
 *.keystore
 
+# Firebase credentials — never commit these
+google-services.json
+GoogleService-Info.plist
+CLAUDE.md
+
 # @end expo-cli
